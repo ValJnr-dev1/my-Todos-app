@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>TodoFlow · Public + Private Tasks</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Inter', -apple-system, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fe 0%, #e9eef5 100%);
+            min-height: 100vh;
+            padding: 2rem 1.5rem;
+        }
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(120deg, #1e2b3c, #2c4e6e);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+        .guest-panel, .auth-panel {
+            flex: 1;
+            min-width: 320px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(2px);
+            border-radius: 2rem;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.08);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+        .panel-header {
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            font-size: 1.3rem;
+            backdrop-filter: blur(4px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .guest-panel .panel-header {
+            background: #fef9e3;
+            color: #b45f06;
+        }
+        .auth-panel .panel-header {
+            background: #e6f4ff;
+            color: #0c4e6e;
+        }
+        .panel-content {
+            padding: 1.5rem;
+        }
+        .form-card {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 1.2rem;
+            margin-bottom: 1.8rem;
+            border: 1px solid #eef2f6;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #2c3e4e;
+            margin-bottom: 0.3rem;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border-radius: 1rem;
+            border: 1px solid #cbd5e1;
+            font-size: 0.9rem;
+        }
+        button {
+            background: #1e2f3c;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button.primary {
+            background: #2c6e9e;
+        }
+        button.primary:hover { background: #1f5379; }
+        button.secondary {
+            background: #e2e8f0;
+            color: #1e2f3c;
+        }
+        .todo-list {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .todo-item {
+            background: white;
+            border-radius: 1.2rem;
+            padding: 1rem;
+            border: 1px solid #e9edf2;
+        }
+        .todo-title {
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 0.3rem;
+        }
+        .status-badge {
+            font-size: 0.7rem;
+            background: #eef2ff;
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            color: #2563eb;
+        }
+        .status-badge.completed {
+            background: #d1fae5;
+            color: #047857;
+        }
+        .empty-state {
+            text-align: center;
+            color: #6c757d;
+            padding: 2rem;
+            font-style: italic;
+        }
+        .user-info {
+            background: #eef2ff;
+            border-radius: 1rem;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logout-btn {
+            background: #64748b;
+            padding: 0.3rem 1rem;
+            font-size: 0.75rem;
+        }
+        .error-msg, .success-msg {
+            border-radius: 1rem;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+        }
+        .error-msg { background: #fee2e2; color: #b91c1c; }
+        .success-msg { background: #dcfce7; color: #15803d; }
+        @media (max-width: 800px) {
+            .dashboard { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header">
+        <h1>✅ TodoFlow</h1>
+        <p>Public guest tasks + your private todos (JWT)</p>
+    </div>
+    <div class="dashboard">
+        <!-- LEFT: GUEST PANEL -->
+        <div class="guest-panel">
+            <div class="panel-header">
+                🌍 Public Guest Todos
+            </div>
+            <div class="panel-content">
+                <div class="form-card">
+                    <h4 style="margin-bottom:0.8rem;">➕ Create public todo</h4>
+                    <div class="form-group">
+                        <label>Title *</label>
+                        <input type="text" id="guestTitle" placeholder="e.g., Community announcement">
+                    </div>
+                    <div class="form-group">
+                        <label>Body</label>
+                        <textarea id="guestBody" rows="2"></textarea>
+                    </div>
+                    <button id="createGuestBtn" class="primary">📌 Publish</button>
+                    <div id="guestFeedback" class="error-msg" style="display:none; margin-top:0.8rem;"></div>
+                </div>
+                <div id="guestTodoList" class="todo-list">
+                    <div class="empty-state">Loading public todos...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: AUTHENTICATED PANEL (visible only when logged in) -->
+        <div class="auth-panel" id="authPanel">
+            <div class="panel-header">
+                🔐 Your Private Workspace
+                <button id="authActionBtn" class="secondary" style="font-size:0.8rem;">Login / Sign up</button>
+            </div>
+            <div class="panel-content" id="authPanelContent">
+                <div class="empty-state">👋 Please login or sign up to manage your private todos.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ---------- CONFIG ----------
+    const API_BASE = 'http://localhost:8000/api/v1';
+    let currentToken = localStorage.getItem('access_token') || null;
+
+    // Helper API request
+    async function apiRequest(endpoint, method, body = null, requiresAuth = false) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (requiresAuth && currentToken) {
+            headers['Authorization'] = `Bearer ${currentToken}`;
+        }
+        const options = { method, headers };
+        if (body) options.body = JSON.stringify(body);
+        try {
+            const response = await fetch(`${API_BASE}${endpoint}`, options);
+            if (response.status === 401 && requiresAuth) {
+                localStorage.removeItem('access_token');
+                currentToken = null;
+                renderAuthPanel();
+                throw new Error('Session expired. Please login again.');
+            }
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+            return { success: true, data };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    }
+
+    // Guest functions
+    async function loadGuestTodos() {
+        const container = document.getElementById('guestTodoList');
+        container.innerHTML = '<div class="empty-state">Loading...</div>';
+        const res = await apiRequest('/guest/todos', 'GET');
+        if (res.success && Array.isArray(res.data)) {
+            if (res.data.length === 0) {
+                container.innerHTML = '<div class="empty-state">✨ No public todos yet. Be the first!</div>';
+                return;
+            }
+            container.innerHTML = res.data.map(todo => `
+                <div class="todo-item">
+                    <div class="todo-title"><span>📌 ${escapeHtml(todo.title)}</span></div>
+                    <div class="todo-body">${escapeHtml(todo.body || '— no description —')}</div>
+                    <div style="font-size:0.7rem; color:#6c757d;">🗓️ ${new Date(todo.created_at).toLocaleString()}</div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = `<div class="empty-state">⚠️ Failed to load: ${res.error || 'unknown'}</div>`;
+        }
+    }
+
+    async function createGuestTodo() {
+        const title = document.getElementById('guestTitle').value.trim();
+        const body = document.getElementById('guestBody').value.trim();
+        if (!title) {
+            showMessage('guestFeedback', 'Title is required', true);
+            return;
+        }
+        const res = await apiRequest('/guest/todos', 'POST', { title, body });
+        if (res.success) {
+            document.getElementById('guestTitle').value = '';
+            document.getElementById('guestBody').value = '';
+            showMessage('guestFeedback', '✅ Guest todo created!', false);
+            loadGuestTodos();
+        } else {
+            showMessage('guestFeedback', `Error: ${res.error}`, true);
+        }
+    }
+
+    // Authenticated user todos (private)
+    async function loadUserTodos() {
+        if (!currentToken) return;
+        const container = document.getElementById('userTodosList');
+        if (!container) return;
+        container.innerHTML = '<div class="empty-state">Loading your tasks...</div>';
+        const res = await apiRequest('/todos', 'GET', null, true);
+        if (res.success && Array.isArray(res.data)) {
+            if (res.data.length === 0) {
+                container.innerHTML = '<div class="empty-state">📭 No todos yet. Create one!</div>';
+                return;
+            }
+            container.innerHTML = res.data.map(todo => `
+                <div class="todo-item" data-id="${todo.id}">
+                    <div class="todo-title">
+                        <span><strong>${escapeHtml(todo.title)}</strong></span>
+                        <span class="status-badge ${todo.status === 'COMPLETED' ? 'completed' : ''}">${todo.status}</span>
+                    </div>
+                    <div class="todo-body">${escapeHtml(todo.body || '—')}</div>
+                    <div class="todo-actions" style="display:flex; gap:0.5rem; margin-top:0.5rem; justify-content:flex-end;">
+                        <button class="edit-btn" data-id="${todo.id}" data-title="${escapeHtml(todo.title)}" data-body="${escapeHtml(todo.body || '')}" data-status="${todo.status}" style="background:#eef2ff; border:none; padding:0.2rem 0.8rem; border-radius:2rem;">✏️ Edit</button>
+                        <button class="delete-btn" data-id="${todo.id}" style="background:#fee2e2; border:none; padding:0.2rem 0.8rem; border-radius:2rem;">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('');
+            // Attach events
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => deleteUserTodo(btn.getAttribute('data-id')));
+            });
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', () => openEditModal(btn));
+            });
+        } else {
+            container.innerHTML = `<div class="empty-state">⚠️ ${res.error || 'Could not load todos'}</div>`;
+        }
+    }
+
+    async function createUserTodo() {
+        const title = document.getElementById('todoTitle').value.trim();
+        const body = document.getElementById('todoBody').value.trim();
+        const status = document.getElementById('todoStatus').value;
+        if (!title) { alert('Title required'); return; }
+        const res = await apiRequest('/todos', 'POST', { title, body, status }, true);
+        if (res.success) {
+            document.getElementById('todoTitle').value = '';
+            document.getElementById('todoBody').value = '';
+            await loadUserTodos();
+            showMessage('userFeedback', 'Todo created!', false);
+        } else {
+            alert(`Error: ${res.error}`);
+        }
+    }
+
+    async function updateUserTodo(todoId, title, body, status) {
+        const res = await apiRequest(`/todos/${todoId}`, 'PUT', { title, body, status }, true);
+        if (res.success) {
+            await loadUserTodos();
+            closeModal();
+            showMessage('userFeedback', 'Todo updated', false);
+        } else {
+            alert(`Update failed: ${res.error}`);
+        }
+    }
+
+    async function deleteUserTodo(todoId) {
+        if (!confirm('Delete permanently?')) return;
+        const res = await apiRequest(`/todos/${todoId}`, 'DELETE', null, true);
+        if (res.success) {
+            await loadUserTodos();
+            showMessage('userFeedback', 'Deleted', false);
+        } else {
+            alert(`Error: ${res.error}`);
+        }
+    }
+
+    // Edit modal helpers
+    let currentEditId = null;
+    function openEditModal(btn) {
+        currentEditId = btn.getAttribute('data-id');
+        document.getElementById('editTitle').value = btn.getAttribute('data-title');
+        document.getElementById('editBody').value = btn.getAttribute('data-body');
+        document.getElementById('editStatus').value = btn.getAttribute('data-status');
+        document.getElementById('editModal').style.display = 'flex';
+    }
+    function closeModal() {
+        document.getElementById('editModal').style.display = 'none';
+        currentEditId = null;
+    }
+    async function confirmEdit() {
+        if (!currentEditId) return;
+        const newTitle = document.getElementById('editTitle').value.trim();
+        const newBody = document.getElementById('editBody').value;
+        const newStatus = document.getElementById('editStatus').value;
+        if (!newTitle) { alert('Title required'); return; }
+        await updateUserTodo(currentEditId, newTitle, newBody, newStatus);
+    }
+
+    // Render right panel based on login status
+    function renderAuthPanel() {
+        const panel = document.getElementById('authPanelContent');
+        const actionBtn = document.getElementById('authActionBtn');
+        if (currentToken) {
+            actionBtn.textContent = 'Logout';
+            actionBtn.onclick = () => { logout(); };
+            panel.innerHTML = `
+                <div class="user-info">
+                    <span>✅ Logged in</span>
+                </div>
+                <div class="form-card">
+                    <h4>✏️ New private todo</h4>
+                    <div class="form-group"><label>Title</label><input type="text" id="todoTitle" placeholder="Task title"></div>
+                    <div class="form-group"><label>Body</label><textarea id="todoBody" rows="2"></textarea></div>
+                    <div class="form-group"><label>Status</label><select id="todoStatus"><option value="PENDING">PENDING</option><option value="COMPLETED">COMPLETED</option></select></div>
+                    <button id="createTodoBtn" class="primary">➕ Create</button>
+                    <div id="userFeedback" style="display:none;"></div>
+                </div>
+                <div><h4>📌 My private tasks</h4><div id="userTodosList" class="todo-list"></div></div>
+            `;
+            document.getElementById('createTodoBtn')?.addEventListener('click', createUserTodo);
+            loadUserTodos();
+        } else {
+            actionBtn.textContent = 'Login / Sign up';
+            actionBtn.onclick = () => { window.location.href = 'login.html'; };
+            panel.innerHTML = `<div class="empty-state">🔐 Sign in to create, edit and manage your private todos.</div>`;
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('access_token');
+        currentToken = null;
+        renderAuthPanel();
+        showMessage('userFeedback', 'Logged out successfully', false);
+    }
+
+    function showMessage(elementId, msg, isError) {
+        const el = document.getElementById(elementId);
+        if (el) {
+            el.textContent = msg;
+            el.className = isError ? 'error-msg' : 'success-msg';
+            el.style.display = 'block';
+            setTimeout(() => { if(el) el.style.display = 'none'; }, 3000);
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, (m) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m]));
+    }
+
+    // Modals overlay
+    const modalHtml = `
+        <div id="editModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
+            <div style="background:white; max-width:450px; width:90%; border-radius:2rem; padding:1.5rem;">
+                <h3>✏️ Edit Todo</h3>
+                <div class="form-group"><label>Title</label><input id="editTitle"></div>
+                <div class="form-group"><label>Body</label><textarea id="editBody" rows="2"></textarea></div>
+                <div class="form-group"><label>Status</label><select id="editStatus"><option value="PENDING">PENDING</option><option value="COMPLETED">COMPLETED</option></select></div>
+                <div style="display:flex; gap:0.7rem; justify-content:flex-end; margin-top:1rem;">
+                    <button id="closeModalBtn" class="secondary">Cancel</button>
+                    <button id="confirmEditBtn" class="primary">Update</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('closeModalBtn')?.addEventListener('click', closeModal);
+    document.getElementById('confirmEditBtn')?.addEventListener('click', confirmEdit);
+    window.addEventListener('click', (e) => { if(e.target === document.getElementById('editModal')) closeModal(); });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        loadGuestTodos();
+        renderAuthPanel();
+        document.getElementById('createGuestBtn').addEventListener('click', createGuestTodo);
+    });
+</script>
+</body>
+</html>
