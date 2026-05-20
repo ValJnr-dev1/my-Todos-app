@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>My Todos · Private Dashboard</title>
+    <title>My Private Todos · Task Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -146,16 +146,26 @@
             gap: 0.6rem;
             justify-content: flex-end;
             margin-top: 0.8rem;
+            flex-wrap: wrap;
         }
-        .edit-btn {
-            background: #eef2ff;
+        .edit-btn, .complete-btn {
             border: none;
             padding: 0.3rem 1rem;
             border-radius: 2rem;
             font-size: 0.75rem;
             font-weight: 500;
             cursor: pointer;
+        }
+        .edit-btn {
+            background: #eef2ff;
             color: #1e40af;
+        }
+        .complete-btn {
+            background: #d1fae5;
+            color: #047857;
+        }
+        .complete-btn:hover {
+            background: #a7f3d0;
         }
         .delete-btn {
             background: #fee2e2;
@@ -235,7 +245,7 @@
     </div>
 </div>
 
-<!-- Edit Modal (hidden) -->
+<!-- Edit Modal -->
 <div id="editModal" style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
     <div style="background: white; max-width: 500px; width: 90%; border-radius: 2rem; padding: 1.8rem;">
         <h3 style="margin-bottom: 1rem;">✏️ Edit Todo</h3>
@@ -264,15 +274,13 @@
 
 <script>
     // ---------- CONFIGURATION ----------
-    const API_BASE = 'http://localhost:8000/api/v1';
+    const API_BASE = 'https://my-todo-api-9vac.onrender.com/api';
     let currentToken = localStorage.getItem('access_token');
 
-    // Redirect if not logged in
     if (!currentToken) {
         window.location.href = 'login.html';
     }
 
-    // Helper: API request with auth
     async function apiRequest(endpoint, method, body = null) {
         const headers = {
             'Content-Type': 'application/json',
@@ -295,10 +303,9 @@
         }
     }
 
-    // Load all user todos
     async function loadTodos() {
         const container = document.getElementById('todoListContainer');
-        container.innerHTML = '<div class="empty-state">Loading...</div>';
+        container.innerHTML = '<div class="empty-state">Loading your tasks...</div>';
         const res = await apiRequest('/todos', 'GET');
         if (res.success && Array.isArray(res.data)) {
             if (res.data.length === 0) {
@@ -313,15 +320,27 @@
                     </div>
                     <div class="todo-body">${escapeHtml(todo.body || '— no description —')}</div>
                     <div class="todo-actions">
+                        ${todo.status === 'PENDING' ? `<button class="complete-btn" data-id="${todo.id}" data-title="${escapeHtml(todo.title)}" data-body="${escapeHtml(todo.body || '')}">✅ Complete</button>` : ''}
                         <button class="edit-btn" data-id="${todo.id}" data-title="${escapeHtml(todo.title)}" data-body="${escapeHtml(todo.body || '')}" data-status="${todo.status}">✏️ Edit</button>
                         <button class="delete-btn" data-id="${todo.id}">🗑️ Delete</button>
                     </div>
                 </div>
             `).join('');
-            // attach events
+            
+            // Attach Complete button events
+            document.querySelectorAll('.complete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = btn.getAttribute('data-id');
+                    const title = btn.getAttribute('data-title');
+                    const body = btn.getAttribute('data-body');
+                    await updateTodoStatus(id, title, body, 'COMPLETED');
+                });
+            });
+            // Attach Edit events
             document.querySelectorAll('.edit-btn').forEach(btn => {
                 btn.addEventListener('click', () => openEditModal(btn));
             });
+            // Attach Delete events
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', () => deleteTodo(btn.getAttribute('data-id')));
             });
@@ -330,7 +349,17 @@
         }
     }
 
-    // Create todo
+    // New function to mark todo as completed
+    async function updateTodoStatus(id, title, body, status) {
+        const res = await apiRequest(`/todos/${id}`, 'PUT', { title, body, status });
+        if (res.success) {
+            showFeedback('createFeedback', '✅ Task marked as completed!', false);
+            loadTodos();  // Refresh the list immediately
+        } else {
+            showFeedback('createFeedback', `Error: ${res.error}`, true);
+        }
+    }
+
     async function createTodo() {
         const title = document.getElementById('todoTitle').value.trim();
         const body = document.getElementById('todoBody').value.trim();
@@ -351,7 +380,6 @@
         }
     }
 
-    // Update todo
     async function updateTodo(id, title, body, status) {
         const res = await apiRequest(`/todos/${id}`, 'PUT', { title, body, status });
         if (res.success) {
@@ -363,7 +391,6 @@
         }
     }
 
-    // Delete todo
     async function deleteTodo(id) {
         if (!confirm('Are you sure you want to delete this todo?')) return;
         const res = await apiRequest(`/todos/${id}`, 'DELETE');
@@ -375,7 +402,6 @@
         }
     }
 
-    // Modal logic
     let currentEditId = null;
     function openEditModal(btn) {
         currentEditId = btn.getAttribute('data-id');
@@ -400,7 +426,6 @@
         await updateTodo(currentEditId, newTitle, newBody, newStatus);
     }
 
-    // Helper UI functions
     function showFeedback(elementId, message, isError) {
         const el = document.getElementById(elementId);
         el.textContent = message;
@@ -421,13 +446,11 @@
         });
     }
 
-    // Logout
     function logout() {
         localStorage.removeItem('access_token');
         window.location.href = 'login.html';
     }
 
-    // Event listeners
     document.getElementById('createTodoBtn').addEventListener('click', createTodo);
     document.getElementById('logoutBtn').addEventListener('click', logout);
     document.getElementById('closeModalBtn').addEventListener('click', closeModal);
@@ -436,7 +459,6 @@
         if (e.target === document.getElementById('editModal')) closeModal();
     });
 
-    // Initial load
     loadTodos();
 </script>
 </body>

@@ -86,7 +86,7 @@
     </div>
 </div>
 <script>
-    const API_BASE = 'http://localhost:8000/api/v1';
+    const API_BASE = 'https://my-todo-api-9vac.onrender.com/api';
     async function registerUser(firstName, lastName, email, password) {
         try {
             const res = await fetch(`${API_BASE}/auth/register`, {
